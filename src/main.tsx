@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
-import { SourceDetailPage } from './pages/SourceDetailPage';
+import { LaneApp } from './LaneApp';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <SourceDetailPage />
+    <LaneApp />
   </React.StrictMode>,
 );
