@@ -9,6 +9,8 @@ build/
 .env
 .env.*
 !.env.example
+.env.local
+.env.*.local
 
 # Logs
 *.log
@@ -29,7 +31,6 @@ Thumbs.db
 coverage/
 .cache/
 .vite/
-*.tsbuildinfo
 
 # Deployment local config
 .vercel/
