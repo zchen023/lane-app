@@ -6,7 +6,7 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
-import { createProject, listProjects, type Project } from '../lib/projects';
+import { createProject, deleteProject, listProjects, type Project } from '../lib/projects';
 
 type ProjectsPageProps = {
   onOpenProject: (projectId: string) => void;
@@ -28,6 +28,7 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -96,6 +97,31 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
     await saveProject();
   }
 
+  async function handleDeleteProject(project: Project) {
+    if (deletingProjectId) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${project.name}"? This will remove the project workspace. This cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setFormError('');
+    setDeletingProjectId(project.id);
+
+    try {
+      await deleteProject(project.id);
+      setProjects((currentProjects) => currentProjects.filter((currentProject) => currentProject.id !== project.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete project.');
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }
+
   return (
     <AppShell activeNav="projects" searchPlaceholder="SEARCH PROJECTS...">
       <PageHeader
@@ -135,50 +161,60 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
             </div>
           ) : (
             <div className="flex flex-col gap-6">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => onOpenProject(project.id)}
-                  className="group w-full border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container"
-                >
-                  <div className="mb-10 flex items-start justify-between gap-8">
-                    <div>
-                      <div className="mb-4 flex flex-wrap items-center gap-4">
-                        <MetadataChip>Active</MetadataChip>
-                        <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
+              {projects.map((project) => {
+                const isDeleting = deletingProjectId === project.id;
+
+                return (
+                  <article key={project.id} className="group w-full border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container">
+                    <div className="mb-10 flex items-start justify-between gap-8">
+                      <div>
+                        <div className="mb-4 flex flex-wrap items-center gap-4">
+                          <MetadataChip>Active</MetadataChip>
+                          <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
+                        </div>
+                        <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
                       </div>
-                      <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Button variant="ghost" size="sm" icon="delete" disabled={Boolean(deletingProjectId)} onClick={() => handleDeleteProject(project)}>
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenProject(project.id)}
+                          className="grid h-12 w-12 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Open ${project.name}`}
+                          disabled={isDeleting}
+                        >
+                          <Icon name="arrow_forward" />
+                        </button>
+                      </div>
                     </div>
-                    <span className="grid h-12 w-12 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-                      <Icon name="arrow_forward" />
-                    </span>
-                  </div>
 
-                  <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">
-                    {project.description || 'No description yet.'}
-                  </p>
+                    <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">
+                      {project.description || 'No description yet.'}
+                    </p>
 
-                  <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
-                    <div>
-                      <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
-                      <p className="mt-2 font-display text-xl text-primary">{formatProjectDate(project.created_at)}</p>
+                    <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
+                      <div>
+                        <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
+                        <p className="mt-2 font-display text-xl text-primary">{formatProjectDate(project.created_at)}</p>
+                      </div>
+                      <div>
+                        <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
+                        <p className="mt-2 font-display text-xl text-primary">0</p>
+                      </div>
+                      <div>
+                        <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
+                        <p className="mt-2 font-display text-xl text-primary">0</p>
+                      </div>
+                      <div>
+                        <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
+                        <p className="mt-2 font-display text-xl text-primary">Not connected</p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
-                      <p className="mt-2 font-display text-xl text-primary">0</p>
-                    </div>
-                    <div>
-                      <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
-                      <p className="mt-2 font-display text-xl text-primary">0</p>
-                    </div>
-                    <div>
-                      <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
-                      <p className="mt-2 font-display text-xl text-primary">Not connected</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
