@@ -175,9 +175,16 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
                         <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
                       </div>
                       <div className="flex shrink-0 items-center gap-3">
-                        <Button variant="ghost" size="sm" icon="delete" disabled={Boolean(deletingProjectId)} onClick={() => handleDeleteProject(project)}>
-                          {isDeleting ? 'Deleting...' : 'Delete'}
-                        </Button>
+                        <button
+                          type="button"
+                          className="metadata inline-flex items-center justify-center gap-2 border border-outline-variant bg-surface px-4 py-3 text-[11px] text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={Boolean(deletingProjectId)}
+                          onClick={() => handleDeleteProject(project)}
+                          aria-label={`Delete ${project.name}`}
+                        >
+                          <Icon name="delete" size={18} />
+                          <span>{isDeleting ? 'DELETING...' : 'DELETE PROJECT'}</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => onOpenProject(project.id)}
