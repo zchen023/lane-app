@@ -1,3 +1,4 @@
+import { FormEvent, useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
 import { Icon } from '../components/ui/Icon';
@@ -5,14 +6,88 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
-import { mockProjects } from '../data/mockProjects';
+import { createProject, listProjects, type Project } from '../lib/projects';
 
 type ProjectsPageProps = {
   onOpenProject: (projectId: string) => void;
 };
 
+function formatProjectDate(value: string | null) {
+  if (!value) {
+    return 'Not recorded';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value));
+}
+
 export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
-  const project = mockProjects[0];
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProjects() {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const savedProjects = await listProjects();
+
+        if (isMounted) {
+          setProjects(savedProjects);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : 'Unable to load projects.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setFormError('');
+    setError('');
+
+    if (!name.trim()) {
+      setFormError('Project name is required.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const savedProject = await createProject({ name, description });
+      setProjects((currentProjects) => [savedProject, ...currentProjects]);
+      setName('');
+      setDescription('');
+    } catch (saveError) {
+      setFormError(saveError instanceof Error ? saveError.message : 'Unable to create project.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <AppShell activeNav="projects" searchPlaceholder="SEARCH PROJECTS...">
@@ -21,85 +96,127 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
         title="Project Workspaces"
         metadata={
           <div className="flex flex-wrap items-center gap-6">
-            <MetadataChip>Local MVP</MetadataChip>
+            <MetadataChip>Real MVP</MetadataChip>
             <MetadataRow
               items={[
-                { icon: 'folder', label: '1 project' },
-                { icon: 'bolt', label: 'Frontend mock data', strong: true },
+                { icon: 'folder', label: `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}` },
+                { icon: 'cloud_done', label: 'Saved to Supabase', strong: true },
               ]}
             />
           </div>
-        }
-        actions={
-          <Button variant="secondary" icon="add" disabled>
-            New Project Later
-          </Button>
         }
       />
 
       <div className="grid grid-cols-12 gap-10">
         <section className="col-span-8">
-          <button
-            type="button"
-            onClick={() => onOpenProject(project.id)}
-            className="group w-full border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container"
-          >
-            <div className="mb-10 flex items-start justify-between gap-8">
-              <div>
-                <div className="mb-4 flex flex-wrap items-center gap-4">
-                  <MetadataChip>{project.status}</MetadataChip>
-                  <MetadataChip variant="outline">{project.type}</MetadataChip>
-                </div>
-                <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
-              </div>
-              <span className="grid h-12 w-12 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-                <Icon name="arrow_forward" />
-              </span>
+          {isLoading ? (
+            <div className="border border-outline-variant bg-surface-container-low p-10">
+              <p className="metadata text-on-surface-variant">LOADING PROJECTS...</p>
             </div>
-
-            <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">{project.description}</p>
-
-            <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">LAST UPDATED</span>
-                <p className="mt-2 font-display text-xl text-primary">{project.lastUpdated}</p>
-              </div>
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
-                <p className="mt-2 font-display text-xl text-primary">{project.sourceConversations}</p>
-              </div>
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
-                <p className="mt-2 font-display text-xl text-primary">{project.tickets}</p>
-              </div>
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
-                <p className="mt-2 font-display text-xl text-primary">{project.codeEvidence}</p>
-              </div>
+          ) : error ? (
+            <div className="border border-outline-variant bg-surface-container-low p-10">
+              <MetadataChip>Needs review</MetadataChip>
+              <p className="mt-6 text-sm leading-6 text-on-surface-variant">{error}</p>
             </div>
-          </button>
+          ) : projects.length === 0 ? (
+            <div className="border border-outline-variant bg-surface-container-low p-10">
+              <MetadataChip>Empty</MetadataChip>
+              <h2 className="mt-6 font-display text-4xl leading-tight text-primary">Create your first Lane project workspace.</h2>
+              <p className="mt-6 max-w-3xl text-sm leading-6 text-on-surface-variant">
+                A project keeps one product&apos;s source conversations, product context, tickets, build specs, and code evidence together.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => onOpenProject(project.id)}
+                  className="group w-full border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container"
+                >
+                  <div className="mb-10 flex items-start justify-between gap-8">
+                    <div>
+                      <div className="mb-4 flex flex-wrap items-center gap-4">
+                        <MetadataChip>Active</MetadataChip>
+                        <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
+                      </div>
+                      <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
+                    </div>
+                    <span className="grid h-12 w-12 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
+                      <Icon name="arrow_forward" />
+                    </span>
+                  </div>
+
+                  <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">
+                    {project.description || 'No description yet.'}
+                  </p>
+
+                  <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
+                      <p className="mt-2 font-display text-xl text-primary">{formatProjectDate(project.created_at)}</p>
+                    </div>
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
+                      <p className="mt-2 font-display text-xl text-primary">0</p>
+                    </div>
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
+                      <p className="mt-2 font-display text-xl text-primary">0</p>
+                    </div>
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
+                      <p className="mt-2 font-display text-xl text-primary">Not connected</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="col-span-4 flex flex-col gap-10">
-          <InfoCard title="MVP Boundary">
-            <p className="text-sm leading-6 text-on-surface-variant">
-              This screen only proves that a builder can open a Lane project workspace. Real creation, auth, backend, persistence, chat import, and GitHub connection are intentionally excluded.
-            </p>
+          <InfoCard title="Create Project">
+            <form className="flex flex-col gap-5" onSubmit={handleCreateProject}>
+              <div>
+                <label className="metadata mb-2 block text-[10px] text-on-surface-variant" htmlFor="project-name">
+                  PROJECT NAME
+                </label>
+                <input
+                  id="project-name"
+                  className="w-full border border-outline-variant bg-surface px-4 py-3 font-body text-sm text-primary outline-none transition-colors focus:border-primary"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Lane 1.0 MVP"
+                />
+              </div>
+
+              <div>
+                <label className="metadata mb-2 block text-[10px] text-on-surface-variant" htmlFor="project-description">
+                  DESCRIPTION OPTIONAL
+                </label>
+                <textarea
+                  id="project-description"
+                  className="min-h-28 w-full resize-none border border-outline-variant bg-surface px-4 py-3 font-body text-sm leading-6 text-primary outline-none transition-colors focus:border-primary"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="What product is this workspace for?"
+                />
+              </div>
+
+              {formError ? <p className="text-sm leading-6 text-on-surface-variant">{formError}</p> : null}
+
+              <Button variant="primary" icon="add">
+                {isSaving ? 'Saving...' : 'Create Project'}
+              </Button>
+            </form>
           </InfoCard>
 
-          <InfoCard title="Next Product Surface">
-            <div className="flex flex-col gap-4">
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">CURRENT TICKET</span>
-                <p className="mt-2 font-display text-2xl text-primary">MVP-001</p>
-              </div>
-              <div className="border-t border-outline-variant pt-6">
-                <span className="metadata text-[10px] text-on-surface-variant">USER OUTCOME</span>
-                <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                  A user can land in Lane, see one project, and open it into a project home page.
-                </p>
-              </div>
-            </div>
+          <InfoCard title="Workspace Foundation">
+            <p className="text-sm leading-6 text-on-surface-variant">
+              Projects are now the persisted foundation for future source conversations, extraction runs, tickets, build specs, and code evidence.
+            </p>
           </InfoCard>
         </aside>
       </div>
