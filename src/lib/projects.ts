@@ -83,3 +83,25 @@ export async function createProject({ name, description }: CreateProjectInput) {
 
   return data;
 }
+
+export async function deleteProject(projectId: string) {
+  const userId = await getCurrentUserId();
+
+  const { data, error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .select(projectSelect)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Project not found or you do not have access to delete it.');
+  }
+
+  return data;
+}
