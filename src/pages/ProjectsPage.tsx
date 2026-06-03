@@ -64,8 +64,10 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
     };
   }, []);
 
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveProject() {
+    if (isSaving) {
+      return;
+    }
 
     setFormError('');
     setError('');
@@ -87,6 +89,11 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await saveProject();
   }
 
   return (
@@ -207,7 +214,7 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
 
               {formError ? <p className="text-sm leading-6 text-on-surface-variant">{formError}</p> : null}
 
-              <Button variant="primary" icon="add" type="submit" disabled={isSaving}>
+              <Button variant="primary" icon="add" type="button" disabled={isSaving} onClick={saveProject}>
                 {isSaving ? 'Saving...' : 'Create Project'}
               </Button>
             </form>
