@@ -177,13 +177,13 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
                       <div className="flex shrink-0 items-center gap-3">
                         <button
                           type="button"
-                          className="metadata inline-flex items-center justify-center gap-2 border border-outline-variant bg-surface px-4 py-3 text-[11px] text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+                          className="grid h-12 w-12 place-items-center border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={Boolean(deletingProjectId)}
                           onClick={() => handleDeleteProject(project)}
                           aria-label={`Delete ${project.name}`}
+                          title="Delete project"
                         >
-                          <Icon name="delete" size={18} />
-                          <span>{isDeleting ? 'DELETING...' : 'DELETE PROJECT'}</span>
+                          <Icon name={isDeleting ? 'hourglass_empty' : 'delete'} size={18} />
                         </button>
                         <button
                           type="button"
