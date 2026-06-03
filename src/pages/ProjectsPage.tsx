@@ -207,7 +207,7 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
 
               {formError ? <p className="text-sm leading-6 text-on-surface-variant">{formError}</p> : null}
 
-              <Button variant="primary" icon="add">
+              <Button variant="primary" icon="add" type="submit" disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Create Project'}
               </Button>
             </form>
