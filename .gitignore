@@ -35,3 +35,4 @@ coverage/
 # Deployment local config
 .vercel/
 .netlify/
+tsconfig.tsbuildinfo
