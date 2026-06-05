@@ -14,14 +14,16 @@ type ProjectsPageProps = {
 
 function formatProjectDate(value: string | null) {
   if (!value) {
-    return 'Not recorded';
+    return '—';
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '—';
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
 }
 
 export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
