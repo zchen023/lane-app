@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
 import { Icon } from '../components/ui/Icon';
@@ -6,29 +6,17 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
-import { createProject, deleteProject, listProjects, type Project } from '../lib/projects';
+import { formatReadableDate } from '../lib/dateFormat';
+import { createProject, listProjects, type Project } from '../lib/projects';
 
 type ProjectsPageProps = {
   onOpenProject: (projectId: string) => void;
 };
 
-function formatProjectDate(value: string | null) {
-  if (!value) {
-    return 'Not recorded';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
 export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -97,28 +85,10 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
     await saveProject();
   }
 
-  async function handleDeleteProject(project: Project) {
-    if (deletingProjectId) {
-      return;
-    }
-
-    const confirmed = window.confirm(`Delete "${project.name}"? This will remove the project workspace. This cannot be undone.`);
-
-    if (!confirmed) {
-      return;
-    }
-
-    setError('');
-    setFormError('');
-    setDeletingProjectId(project.id);
-
-    try {
-      await deleteProject(project.id);
-      setProjects((currentProjects) => currentProjects.filter((currentProject) => currentProject.id !== project.id));
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete project.');
-    } finally {
-      setDeletingProjectId(null);
+  function handleProjectCardKeyDown(event: KeyboardEvent<HTMLElement>, projectId: string) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpenProject(projectId);
     }
   }
 
@@ -161,67 +131,53 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
             </div>
           ) : (
             <div className="flex flex-col gap-6">
-              {projects.map((project) => {
-                const isDeleting = deletingProjectId === project.id;
-
-                return (
-                  <article key={project.id} className="group w-full border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container">
-                    <div className="mb-10 flex items-start justify-between gap-8">
-                      <div>
-                        <div className="mb-4 flex flex-wrap items-center gap-4">
-                          <MetadataChip>Active</MetadataChip>
-                          <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
-                        </div>
-                        <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
+              {projects.map((project) => (
+                <article
+                  key={project.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpenProject(project.id)}
+                  onKeyDown={(event) => handleProjectCardKeyDown(event, project.id)}
+                  className="group w-full cursor-pointer border border-outline-variant bg-surface-container-low p-10 text-left transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface"
+                  aria-label={`Open ${project.name}`}
+                >
+                  <div className="mb-10 flex items-start justify-between gap-8">
+                    <div>
+                      <div className="mb-4 flex flex-wrap items-center gap-4">
+                        <MetadataChip>Active</MetadataChip>
+                        <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <button
-                          type="button"
-                          className="grid h-12 w-12 place-items-center border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={Boolean(deletingProjectId)}
-                          onClick={() => handleDeleteProject(project)}
-                          aria-label={`Delete ${project.name}`}
-                          title="Delete project"
-                        >
-                          <Icon name={isDeleting ? 'hourglass_empty' : 'delete'} size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onOpenProject(project.id)}
-                          className="grid h-12 w-12 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
-                          aria-label={`Open ${project.name}`}
-                          disabled={isDeleting}
-                        >
-                          <Icon name="arrow_forward" />
-                        </button>
-                      </div>
+                      <h2 className="font-display text-5xl leading-none tracking-[-0.02em] text-primary">{project.name}</h2>
                     </div>
+                    <span className="grid h-12 w-12 shrink-0 place-items-center border border-outline-variant text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary" aria-hidden="true">
+                      <Icon name="arrow_forward" />
+                    </span>
+                  </div>
 
-                    <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">
-                      {project.description || 'No description yet.'}
-                    </p>
+                  <p className="mb-10 max-w-3xl font-body text-base leading-7 text-on-surface-variant">
+                    {project.description || 'No description yet.'}
+                  </p>
 
-                    <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
-                      <div>
-                        <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
-                        <p className="mt-2 font-display text-xl text-primary">{formatProjectDate(project.created_at)}</p>
-                      </div>
-                      <div>
-                        <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
-                        <p className="mt-2 font-display text-xl text-primary">0</p>
-                      </div>
-                      <div>
-                        <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
-                        <p className="mt-2 font-display text-xl text-primary">0</p>
-                      </div>
-                      <div>
-                        <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
-                        <p className="mt-2 font-display text-xl text-primary">Not connected</p>
-                      </div>
+                  <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
+                      <p className="mt-2 font-display text-xl text-primary">{formatReadableDate(project.created_at)}</p>
                     </div>
-                  </article>
-                );
-              })}
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
+                      <p className="mt-2 font-display text-xl text-primary">0</p>
+                    </div>
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
+                      <p className="mt-2 font-display text-xl text-primary">0</p>
+                    </div>
+                    <div>
+                      <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
+                      <p className="mt-2 font-display text-xl text-primary">Not connected</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
