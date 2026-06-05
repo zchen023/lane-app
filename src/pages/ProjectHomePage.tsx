@@ -5,6 +5,7 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
+import { formatReadableDate } from '../lib/dateFormat';
 import { deleteProject, getProjectById, type Project } from '../lib/projects';
 
 type ProjectHomePageProps = {
@@ -63,18 +64,6 @@ const workspaceSections: WorkspaceSection[] = [
     icon: 'rule',
   },
 ];
-
-function formatProjectDate(value: string | null) {
-  if (!value) {
-    return 'Not recorded';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-}
 
 export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePageProps) {
   const [project, setProject] = useState<Project | null>(null);
@@ -204,7 +193,7 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
                 <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
                 <MetadataRow
                   items={[
-                    { icon: 'calendar_today', label: `Created ${formatProjectDate(project.created_at)}` },
+                    { icon: 'calendar_today', label: `Created ${formatReadableDate(project.created_at)}` },
                     { icon: 'cloud_done', label: 'Saved project', strong: true },
                   ]}
                 />
