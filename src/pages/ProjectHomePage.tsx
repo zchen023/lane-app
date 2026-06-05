@@ -5,7 +5,7 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
-import { getProjectById, type Project } from '../lib/projects';
+import { deleteProject, getProjectById, type Project } from '../lib/projects';
 
 type ProjectHomePageProps = {
   projectId: string;
@@ -79,6 +79,8 @@ function formatProjectDate(value: string | null) {
 export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -119,6 +121,30 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
       isMounted = false;
     };
   }, [projectId]);
+
+  async function handleDeleteProject() {
+    if (!project || isDeleting) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${project.name}"? This will remove the project workspace. This cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setIsActionsMenuOpen(false);
+    setIsDeleting(true);
+
+    try {
+      await deleteProject(project.id);
+      onBackToProjects();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete project.');
+      setIsDeleting(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -167,22 +193,53 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
         </button>
       </nav>
 
-      <PageHeader
-        eyebrow="Project Home"
-        title={project.name}
-        metadata={
-          <div className="flex flex-wrap items-center gap-6">
-            <MetadataChip>Active</MetadataChip>
-            <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
-            <MetadataRow
-              items={[
-                { icon: 'calendar_today', label: `Created ${formatProjectDate(project.created_at)}` },
-                { icon: 'cloud_done', label: 'Saved project', strong: true },
-              ]}
-            />
-          </div>
-        }
-      />
+      <div className="flex items-start justify-between gap-8">
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            eyebrow="Project Home"
+            title={project.name}
+            metadata={
+              <div className="flex flex-wrap items-center gap-6">
+                <MetadataChip>Active</MetadataChip>
+                <MetadataChip variant="outline">Builder Context Layer</MetadataChip>
+                <MetadataRow
+                  items={[
+                    { icon: 'calendar_today', label: `Created ${formatProjectDate(project.created_at)}` },
+                    { icon: 'cloud_done', label: 'Saved project', strong: true },
+                  ]}
+                />
+              </div>
+            }
+          />
+        </div>
+
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            className="grid h-12 w-12 place-items-center border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Open project actions"
+            aria-expanded={isActionsMenuOpen}
+            disabled={isDeleting}
+            onClick={() => setIsActionsMenuOpen((isOpen) => !isOpen)}
+          >
+            <Icon name="more_horiz" size={20} />
+          </button>
+
+          {isActionsMenuOpen ? (
+            <div className="absolute right-0 top-full z-10 mt-3 w-56 border border-outline-variant bg-surface-container-low shadow-lg">
+              <button
+                type="button"
+                className="metadata flex w-full items-center gap-3 px-4 py-4 text-left text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isDeleting}
+                onClick={handleDeleteProject}
+              >
+                <Icon name={isDeleting ? 'hourglass_empty' : 'delete'} size={18} />
+                <span>{isDeleting ? 'DELETING...' : 'DELETE PROJECT'}</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <div className="grid grid-cols-12 gap-10">
         <section className="col-span-8">
