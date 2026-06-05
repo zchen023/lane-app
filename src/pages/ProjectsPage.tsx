@@ -6,25 +6,12 @@ import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
 import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
+import { formatReadableDate } from '../lib/dateFormat';
 import { createProject, listProjects, type Project } from '../lib/projects';
 
 type ProjectsPageProps = {
   onOpenProject: (projectId: string) => void;
 };
-
-function formatProjectDate(value: string | null) {
-  if (!value) {
-    return '—';
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return '—';
-  }
-
-  return parsedDate.toISOString().slice(0, 10);
-}
 
 export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -174,7 +161,7 @@ export function ProjectsPage({ onOpenProject }: ProjectsPageProps) {
                   <div className="grid grid-cols-4 border-t border-outline-variant pt-8">
                     <div>
                       <span className="metadata text-[10px] text-on-surface-variant">CREATED</span>
-                      <p className="mt-2 font-display text-xl text-primary">{formatProjectDate(project.created_at)}</p>
+                      <p className="mt-2 font-display text-xl text-primary">{formatReadableDate(project.created_at)}</p>
                     </div>
                     <div>
                       <span className="metadata text-[10px] text-on-surface-variant">SOURCES</span>
