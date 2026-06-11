@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
+import { ProjectActionsMenu } from '../components/project/ProjectActionsMenu';
+import { WorkspaceSnapshot } from '../components/project/WorkspaceSnapshot';
+import { WorkspaceSectionGrid, type WorkspaceSection } from '../components/project/WorkspaceSectionGrid';
 import { Icon } from '../components/ui/Icon';
 import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
@@ -11,13 +14,6 @@ import { deleteProject, getProjectById, type Project } from '../lib/projects';
 type ProjectHomePageProps = {
   projectId: string;
   onBackToProjects: () => void;
-};
-
-type WorkspaceSection = {
-  title: string;
-  description: string;
-  status: string;
-  icon: string;
 };
 
 const workspaceSections: WorkspaceSection[] = [
@@ -202,32 +198,12 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
           />
         </div>
 
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            className="grid h-12 w-12 place-items-center border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Open project actions"
-            aria-expanded={isActionsMenuOpen}
-            disabled={isDeleting}
-            onClick={() => setIsActionsMenuOpen((isOpen) => !isOpen)}
-          >
-            <Icon name="more_horiz" size={20} />
-          </button>
-
-          {isActionsMenuOpen ? (
-            <div className="absolute right-0 top-full z-10 mt-3 w-56 border border-outline-variant bg-surface-container-low shadow-lg">
-              <button
-                type="button"
-                className="metadata flex w-full items-center gap-3 px-4 py-4 text-left text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isDeleting}
-                onClick={handleDeleteProject}
-              >
-                <Icon name={isDeleting ? 'hourglass_empty' : 'delete'} size={18} />
-                <span>{isDeleting ? 'DELETING...' : 'DELETE PROJECT'}</span>
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <ProjectActionsMenu
+          isOpen={isActionsMenuOpen}
+          isDeleting={isDeleting}
+          onToggle={() => setIsActionsMenuOpen((isOpen) => !isOpen)}
+          onDeleteProject={handleDeleteProject}
+        />
       </div>
 
       <div className="grid grid-cols-12 gap-10">
@@ -239,39 +215,11 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            {workspaceSections.map((section) => (
-              <article key={section.title} className="border border-outline-variant bg-surface-container-low p-8">
-                <div className="mb-8 flex items-start justify-between gap-6">
-                  <span className="grid h-10 w-10 place-items-center border border-outline-variant text-primary">
-                    <Icon name={section.icon} size={20} />
-                  </span>
-                  <MetadataChip variant="outline">{section.status}</MetadataChip>
-                </div>
-                <h3 className="mb-4 font-display text-3xl leading-tight text-primary">{section.title}</h3>
-                <p className="text-sm leading-6 text-on-surface-variant">{section.description}</p>
-              </article>
-            ))}
-          </div>
+          <WorkspaceSectionGrid sections={workspaceSections} />
         </section>
 
         <aside className="col-span-4 flex flex-col gap-10">
-          <InfoCard title="Workspace Snapshot">
-            <div className="flex flex-col gap-6">
-              <div>
-                <span className="metadata text-[10px] text-on-surface-variant">SOURCE CONVERSATIONS</span>
-                <p className="mt-2 font-display text-2xl text-primary">0</p>
-              </div>
-              <div className="border-t border-outline-variant pt-6">
-                <span className="metadata text-[10px] text-on-surface-variant">TICKETS</span>
-                <p className="mt-2 font-display text-2xl text-primary">0</p>
-              </div>
-              <div className="border-t border-outline-variant pt-6">
-                <span className="metadata text-[10px] text-on-surface-variant">CODE EVIDENCE</span>
-                <p className="mt-2 font-display text-2xl text-primary">Not connected</p>
-              </div>
-            </div>
-          </InfoCard>
+          <WorkspaceSnapshot />
 
           <InfoCard title="Evidence Language Reminder">
             <p className="text-sm leading-6 text-on-surface-variant">
