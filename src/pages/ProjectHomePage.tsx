@@ -3,6 +3,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { ProjectActionsMenu } from '../components/project/ProjectActionsMenu';
 import { WorkspaceSnapshot } from '../components/project/WorkspaceSnapshot';
 import { WorkspaceSectionGrid, type WorkspaceSection } from '../components/project/WorkspaceSectionGrid';
+import { SourceConversationPanel } from '../components/source/SourceConversationPanel';
 import { Icon } from '../components/ui/Icon';
 import { InfoCard } from '../components/ui/InfoCard';
 import { MetadataChip } from '../components/ui/MetadataChip';
@@ -10,70 +11,79 @@ import { MetadataRow } from '../components/ui/MetadataRow';
 import { PageHeader } from '../components/ui/PageHeader';
 import { formatReadableDate } from '../lib/dateFormat';
 import { deleteProject, getProjectById, type Project } from '../lib/projects';
+import { listSourceConversations, type SourceConversation } from '../lib/sourceConversations';
 
 type ProjectHomePageProps = {
   projectId: string;
   onBackToProjects: () => void;
 };
 
-const workspaceSections: WorkspaceSection[] = [
-  {
-    title: 'Source Conversations',
-    description: 'Future imported AI product conversations will belong to this project workspace.',
-    status: 'Not started',
-    icon: 'description',
-  },
-  {
-    title: 'Product Brief',
-    description: 'The living product brief will collect approved product truth and suggested updates.',
-    status: 'Not started',
-    icon: 'article',
-  },
-  {
-    title: 'Product Context',
-    description: 'Structured users, painful moments, goals, constraints, and scope boundaries will appear here.',
-    status: 'Not started',
-    icon: 'hub',
-  },
-  {
-    title: 'Feature Map',
-    description: 'Feature areas extracted from source conversations will be grouped here.',
-    status: 'Not started',
-    icon: 'account_tree',
-  },
-  {
-    title: 'Tickets / Specs',
-    description: 'Lightweight tickets and build specs will connect product intent to execution.',
-    status: 'Not started',
-    icon: 'fact_check',
-  },
-  {
-    title: 'Code Evidence',
-    description: 'GitHub or codebase snapshot evidence will appear here after connection.',
-    status: 'Not connected',
-    icon: 'code_blocks',
-  },
-  {
-    title: 'Built vs Missing',
-    description: 'Evidence-based implementation status will show what exists, what is missing, and what needs review.',
-    status: 'Waiting for evidence',
-    icon: 'rule',
-  },
-];
+function getWorkspaceSections(sourceConversationCount: number): WorkspaceSection[] {
+  return [
+    {
+      title: 'Source Conversations',
+      description: sourceConversationCount > 0 ? 'Saved AI product conversations now belong to this project workspace.' : 'Paste and save AI product conversations so Lane can preserve the original product thinking.',
+      status: sourceConversationCount > 0 ? `${sourceConversationCount} saved` : 'Not started',
+      icon: 'description',
+    },
+    {
+      title: 'Product Brief',
+      description: 'The living product brief will collect approved product truth and suggested updates.',
+      status: 'Not started',
+      icon: 'article',
+    },
+    {
+      title: 'Product Context',
+      description: 'Structured users, painful moments, goals, constraints, and scope boundaries will appear here.',
+      status: 'Not started',
+      icon: 'hub',
+    },
+    {
+      title: 'Feature Map',
+      description: 'Feature areas extracted from source conversations will be grouped here.',
+      status: 'Not started',
+      icon: 'account_tree',
+    },
+    {
+      title: 'Tickets / Specs',
+      description: 'Lightweight tickets and build specs will connect product intent to execution.',
+      status: 'Not started',
+      icon: 'fact_check',
+    },
+    {
+      title: 'Code Evidence',
+      description: 'GitHub or codebase snapshot evidence will appear here after connection.',
+      status: 'Not connected',
+      icon: 'code_blocks',
+    },
+    {
+      title: 'Built vs Missing',
+      description: 'Evidence-based implementation status will show what exists, what is missing, and what needs review.',
+      status: 'Waiting for evidence',
+      icon: 'rule',
+    },
+  ];
+}
 
 export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePageProps) {
   const [project, setProject] = useState<Project | null>(null);
+  const [sourceConversations, setSourceConversations] = useState<SourceConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSourceConversations, setIsLoadingSourceConversations] = useState(true);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [sourceConversationError, setSourceConversationError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadProject() {
+    async function loadProjectWorkspace() {
       setIsLoading(true);
+      setIsLoadingSourceConversations(true);
       setError('');
+      setSourceConversationError('');
+      setSourceConversations([]);
 
       try {
         const savedProject = await getProjectById(projectId);
@@ -85,13 +95,32 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
         if (!savedProject) {
           setError('Project not found or you do not have access to it.');
           setProject(null);
+          setIsLoadingSourceConversations(false);
           return;
         }
 
         setProject(savedProject);
+        setIsLoading(false);
+
+        try {
+          const savedSourceConversations = await listSourceConversations(projectId);
+
+          if (isMounted) {
+            setSourceConversations(savedSourceConversations);
+          }
+        } catch (loadSourceConversationError) {
+          if (isMounted) {
+            setSourceConversationError(loadSourceConversationError instanceof Error ? loadSourceConversationError.message : 'Unable to load source conversations.');
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoadingSourceConversations(false);
+          }
+        }
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : 'Unable to load project.');
+          setIsLoadingSourceConversations(false);
         }
       } finally {
         if (isMounted) {
@@ -100,7 +129,7 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
       }
     }
 
-    loadProject();
+    loadProjectWorkspace();
 
     return () => {
       isMounted = false;
@@ -129,6 +158,11 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete project.');
       setIsDeleting(false);
     }
+  }
+
+  function handleSourceConversationSaved(sourceConversation: SourceConversation) {
+    setSourceConversations((currentSourceConversations) => [sourceConversation, ...currentSourceConversations]);
+    setSourceConversationError('');
   }
 
   if (isLoading) {
@@ -168,6 +202,9 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
       </AppShell>
     );
   }
+
+  const sourceConversationCount = sourceConversations.length;
+  const workspaceSections = getWorkspaceSections(sourceConversationCount);
 
   return (
     <AppShell activeNav="projects" searchPlaceholder="SEARCH WORKSPACE...">
@@ -216,10 +253,18 @@ export function ProjectHomePage({ projectId, onBackToProjects }: ProjectHomePage
           </div>
 
           <WorkspaceSectionGrid sections={workspaceSections} />
+
+          <SourceConversationPanel
+            projectId={project.id}
+            sourceConversations={sourceConversations}
+            isLoading={isLoadingSourceConversations}
+            error={sourceConversationError}
+            onSourceConversationSaved={handleSourceConversationSaved}
+          />
         </section>
 
         <aside className="col-span-4 flex flex-col gap-10">
-          <WorkspaceSnapshot />
+          <WorkspaceSnapshot sourceConversationCount={sourceConversationCount} />
 
           <InfoCard title="Evidence Language Reminder">
             <p className="text-sm leading-6 text-on-surface-variant">
